@@ -1,4 +1,4 @@
-# 🧬 Lokesh's Genetic Algorithms Survival Guide
+# 🧬 Genetic Algorithms Survival Guide....
 
 🚀 Welcome to a world where code evolves like living beings. This project is your ultimate guide to understanding **Genetic Algorithms (GA)** — from the basics to brainy stuff — in the most chill, student-friendly way!
 
