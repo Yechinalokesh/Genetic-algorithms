@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genetic Algorithm: The Full Cycle</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+    }
+    body {
+      background: linear-gradient(to right, #1f4037, #99f2c8);
+      overflow: hidden;
+      color: white;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-top: 1rem;
+      animation: popIn 1s ease-out;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    @keyframes popIn {
+      from { transform: scale(0); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .game-area {
+      margin: 1rem auto;
+      width: 90vw;
+      height: 65vh;
+      max-width: 1000px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 3px dashed #fff;
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    #goal {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      background: gold;
+      border-radius: 50%;
+      border: 5px solid white;
+      box-shadow: 0 0 30px 10px gold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      color: #333;
+    }
+    .creature {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      position: absolute;
+      background: #ffdd57;
+      border: 3px solid white;
+      transition: all 1s ease-in-out;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #333;
+    }
+    .creature.fading {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    .creature.mutated {
+        animation: flash 0.5s 2;
+    }
+    @keyframes flash {
+        0%, 100% { background-color: #ff3c78; box-shadow: 0 0 15px #ff3c78;}
+        50% { background-color: #fff; }
+    }
+    .control-panel {
+      margin-top: 1rem;
+    }
+    button {
+      padding: 12px 25px;
+      margin: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.1rem;
+      transition: all 0.3s;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    button:hover:not(:disabled) {
+      background: #ffd700;
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      background: #aaa;
+      color: #666;
+      cursor: not-allowed;
+    }
+    .explanation {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 1rem;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 800px;
+      margin: 1rem auto;
+      font-size: 1.1rem;
+      animation: fadeIn 1s ease-in;
+    }
+    .explanation strong { color: #ffd700; }
+  </style>
+</head>
+<body>
+  <h1>🧬 Evolution Playground: The Full Cycle</h1>
+  <div class="explanation" id="infoBox"></div>
+  <div class="control-panel">
+    <button id="actionBtn">Start From Scratch</button>
+  </div>
+  <div class="game-area" id="gameArea">
+      <div id="goal">GOAL</div>
+  </div>
+
+  <script>
+    const gameArea = document.getElementById("gameArea");
+    const infoBox = document.getElementById("infoBox");
+    const actionBtn = document.getElementById("actionBtn");
+    const goalEl = document.getElementById("goal");
+    
+    let generation = 0;
+    let creatures = [];
+    let populationSize = 15;
+    let goalPos = {};
+    let gameState = "START"; // START, CREATED, EVALUATED, SELECTED, BRED
+
+    // --- Core Game Logic ---
+    function setGameState(newState) {
+        gameState = newState;
+        updateUI();
+    }
+
+    function updateUI() {
+        actionBtn.disabled = false;
+        switch(gameState) {
+            case "START":
+                actionBtn.textContent = "🎲 Create Population";
+                infoBox.innerHTML = "Welcome! Let's start a new evolution. Click the button to create a <strong>random population</strong> of creatures.";
+                break;
+            case "CREATED":
+                actionBtn.textContent = "📈 Evaluate Fitness";
+                infoBox.innerHTML = "A new population is born! Now, let's see how 'fit' they are. Fitness is based on how <strong>close they are to the GOAL</strong>. Click to evaluate.";
+                break;
+            case "EVALUATED":
+                actionBtn.textContent = "🏅 Select The Fittest";
+                infoBox.innerHTML = "Evaluation complete! Creatures closer to the goal are bigger (fitter). Now, we must perform <strong>Selection</strong>. Only the top half will survive to breed.";
+                break;
+            case "SELECTED":
+                actionBtn.textContent = "💖 Crossover & Mutate";
+                infoBox.innerHTML = "The weak have been removed! Now for the fun part: <strong>Crossover & Mutation</strong>. The survivors will pair up to create new children, with a small chance of a random mutation!";
+                break;
+            case "BRED":
+                actionBtn.textContent = "🔁 Complete Generation";
+                infoBox.innerHTML = `Generation ${generation} is complete! The new children have replaced the old generation. Click to start the next cycle.`;
+                break;
+        }
+    }
+
+    actionBtn.addEventListener('click', () => {
+        actionBtn.disabled = true; // Prevent spam clicks
+        switch(gameState) {
+            case "START":
+                startNewEvolution();
+                break;
+            case "CREATED":
+                evaluateFitness();
+                break;
+            case "EVALUATED":
+                selection();
+                break;
+            case "SELECTED":
+                crossoverAndMutate();
+                break;
+            case "BRED":
+                startNextGeneration();
+                break;
+        }
+    });
+
+    // --- GENETIC ALGORITHM PHASES ---
+
+    // Phase 1: Create a random population
+    function createInitialPopulation() {
+        clearCreatures();
+        for (let i = 0; i < populationSize; i++) {
+            const x = Math.random() * (gameArea.offsetWidth - 30);
+            const y = Math.random() * (gameArea.offsetHeight - 30);
+            createCreature({ x, y, fitness: 0, generation: 1 });
+        }
+        setGameState("CREATED");
+    }
+    
+    // Phase 2: Evaluate fitness of each creature
+    function evaluateFitness() {
+        infoBox.innerHTML = "Calculating fitness... The closer to the goal, the better!";
+        creatures.forEach(c => {
+            const dist = Math.hypot(c.x - goalPos.x, c.y - goalPos.y);
+            const maxDist = Math.hypot(gameArea.offsetWidth, gameArea.offsetHeight);
+            c.fitness = 1 - (dist / maxDist); // Fitness is 0 to 1 (1 is best)
+
+            // Visual update based on fitness
+            c.element.style.transform = `scale(${0.5 + c.fitness})`;
+            c.element.style.background = `hsl(${120 * c.fitness}, 100%, 50%)`;
+            c.element.textContent = Math.round(c.fitness * 100);
+        });
+        setGameState("EVALUATED");
+    }
+
+    // Phase 3: Select the fittest individuals
+    function selection() {
+        infoBox.innerHTML = "Selecting the best... The weakest will now fade away.";
+        creatures.sort((a, b) => b.fitness - a.fitness);
+        const cutoff = Math.ceil(creatures.length / 2);
+        
+        const survivors = creatures.slice(0, cutoff);
+        const losers = creatures.slice(cutoff);
+
+        losers.forEach(c => {
+            c.element.classList.add('fading');
+        });
+
+        setTimeout(() => {
+            losers.forEach(c => c.element.remove());
+            creatures = survivors;
+            setGameState("SELECTED");
+        }, 1200);
+    }
+    
+    // Phase 4: Create new generation through crossover and mutation
+    function crossoverAndMutate() {
+        infoBox.innerHTML = "Breeding new creatures! Parents are combining their traits...";
+        const newGeneration = [];
+        while(newGeneration.length < populationSize) {
+            const parentA = creatures[Math.floor(Math.random() * creatures.length)];
+            const parentB = creatures[Math.floor(Math.random() * creatures.length)];
+
+            // Crossover: New position is average of parents + some randomness
+            let newX = (parentA.x + parentB.x) / 2 + (Math.random() * 60 - 30);
+            let newY = (parentA.y + parentB.y) / 2 + (Math.random() * 60 - 30);
+            
+            // Mutation: Small chance to jump to a totally new position
+            const didMutate = Math.random() < 0.15; // 15% chance
+            if (didMutate) {
+                newX = Math.random() * (gameArea.offsetWidth - 30);
+                newY = Math.random() * (gameArea.offsetHeight - 30);
+            }
+            
+            // Create the child creature
+            const child = createCreature({ x: newX, y: newY, fitness: 0, generation: generation + 1 }, didMutate);
+            newGeneration.push(child);
+        }
+        
+        // Remove old parents and keep new children
+        setTimeout(() => {
+            creatures.forEach(c => c.element.classList.add('fading'));
+            setTimeout(() => {
+                clearCreatures();
+                creatures = newGeneration;
+                setGameState("BRED");
+            }, 1200);
+        }, 1500);
+    }
+
+    function startNextGeneration() {
+        generation++;
+        infoBox.innerHTML = `Starting <strong>Generation ${generation}</strong>! This new generation should be better adapted. Let's evaluate them.`
+        setGameState("CREATED");
+    }
+
+    // --- Helper Functions ---
+    function createCreature(data, mutated = false) {
+      const c = document.createElement("div");
+      c.classList.add("creature");
+      if(mutated) c.classList.add('mutated');
+
+      c.style.left = data.x + "px";
+      c.style.top = data.y + "px";
+      
+      const creatureObj = { ...data, element: c };
+      creatures.push(creatureObj);
+      gameArea.appendChild(c);
+      return creatureObj;
+    }
+
+    function clearCreatures() {
+      gameArea.innerHTML = "";
+      gameArea.appendChild(goalEl); // Re-add goal
+      creatures = [];
+    }
+
+    function startNewEvolution() {
+        generation = 1;
+        infoBox.innerHTML = `Starting a <strong>brand new evolution</strong>! Creating a random population...`;
+        createInitialPopulation();
+    }
+    
+    // --- Initial Game Setup ---
+    function init() {
+        // Place goal randomly
+        goalPos.x = 20 + Math.random() * (gameArea.offsetWidth - 120);
+        goalPos.y = 20 + Math.random() * (gameArea.offsetHeight - 120);
+        goalEl.style.left = `${goalPos.x}px`;
+        goalEl.style.top = `${goalPos.y}px`;
+        
+        setGameState("START");
+    }
+
+    init();
+  </script>
+</body>
+</html>
