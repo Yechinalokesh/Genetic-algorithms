@@ -1,7 +1,8 @@
 # 🧬 Genetic Algorithms Survival Guide....
 
-🚀 Welcome to a world where code evolves like living beings. This project is your ultimate guide to understanding **Genetic Algorithms (GA)** — from the basics to brainy stuff — in the most chill, student-friendly way!
+👉 Try the Interactive Demo https://yechinalokesh.github.io/Genetic-algorithms/ 🚀
 
+🚀 Welcome to a world where code evolves like living beings. This project is your ultimate guide to understanding Genetic Algorithms (GA) — from the basics to brainy stuff — in the most chill, student-friendly way!
 ---
 
 ## 🧥 What Are Genetic Algorithms?
